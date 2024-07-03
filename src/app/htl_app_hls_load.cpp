@@ -108,7 +108,24 @@ int StHlsTask::ProcessM3u8(StHttpClient& client){
     }
     
     if (!variant.empty()) {
-        if ((ret = url.Initialize(variant)) != ERROR_SUCCESS) {
+        string variant_url = variant;
+
+        // Resolve relative path.
+        if (variant.find("http://") != 0 && variant.find("https://") != 0) {
+            stringstream ss;
+            ss << string(url.GetSchema()) << "://" << string(url.GetHost()) << ":" << url.GetPort();
+            if (variant.find("/") != 0) {
+                string path = url.GetPath();
+                if (path.rfind("/") != string::npos) {
+                    ss << path.substr(0, path.rfind("/"));
+                }
+                ss << "/";
+            }
+            ss << variant;
+            variant_url = ss.str();
+        }
+
+        if ((ret = url.Initialize(variant_url)) != ERROR_SUCCESS) {
             Error("parse variant=%s failed, ret=%d", variant.c_str(), ret);
             return ret;
         }
@@ -182,7 +199,8 @@ int StHlsTask::DownloadTS(StHttpClient& client, M3u8TS& ts){
     
     Info("[TS] url=%s, duration=%.2f, delay=%.2f", url.GetUrl(), ts.duration, delay_seconds);
     statistic->OnSubTaskStart(GetId(), ts.ts_url);
-    
+
+    int64_t starttime = StUtility::GetCurrentTime();
     if((ret = client.DownloadString(&url, NULL)) != ERROR_SUCCESS){
         statistic->OnSubTaskError(GetId(), (int)ts.duration);
             
@@ -191,8 +209,9 @@ int StHlsTask::DownloadTS(StHttpClient& client, M3u8TS& ts){
     }
     
     int sleep_ms = StUtility::BuildRandomMTime((delay_seconds >= 0)? delay_seconds:ts.duration);
-    Trace("[TS] url=%s download, duration=%.2f, delay=%.2f, size=%"PRId64", sleep %dms", 
-        url.GetUrl(), ts.duration, delay_seconds, client.GetResponseHeader()->content_length, sleep_ms);
+    Trace("[TS] url=%s download, cost=%dms, duration=%.2f, delay=%.2f, size=%"PRId64", sleep %dms",
+        url.GetUrl(), (int)(StUtility::GetCurrentTime() - starttime), ts.duration, delay_seconds,
+        client.GetResponseHeader()->content_length, sleep_ms);
     st_usleep(sleep_ms * 1000);
     
     statistic->OnSubTaskEnd(GetId(), (int)ts.duration);

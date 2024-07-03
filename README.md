@@ -1,7 +1,52 @@
-SB(SRS Bench)
-===========
+# SB(SRS Bench)
+
+![](http://ossrs.net:8000/gif/v1/sls.gif?site=github.com&path=/srs/bench)
+[![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://github.com/ossrs/srs/wiki/v1_CN_Contact#wechat)
+
+For WebRTC benchmark and test, please use branch [feature/rtc](https://github.com/ossrs/srs-bench/tree/feature/rtc).
 
 hls/http/rtmp-play/rtmp-publish load test tool base on st(state-threads), support huge concurrency<br/>
+
+## Usage
+
+Build from source, then run RTMP benchmark:
+
+```
+git clone https://github.com/ossrs/srs-bench.git &&
+cd srs-bench && ./configure && make &&
+./objs/sb_rtmp_load -c 1 -r rtmp://127.0.0.1:1935/live/livestream
+```
+
+Or directly by docker:
+
+```bash
+docker run --rm -it --network=host --name sb ossrs/srs:sb \
+    ./objs/sb_rtmp_load -c 1 -r rtmp://127.0.0.1:1935/live/livestream
+```
+
+For HTTP-FLV benchmark:
+
+```bash
+docker run --rm -it --network=host --name sb ossrs/srs:sb \
+    ./objs/sb_http_load -c 1 -r http://127.0.0.1:8080/live/livestream.flv
+```
+
+For HLS benchmark:
+
+```bash
+docker run --rm -it --network=host --name sb ossrs/srs:sb \
+    ./objs/sb_hls_load -c 1 -r http://127.0.0.1:8080/live/livestream.m3u8
+```
+
+Or from Aliyun mirror:
+
+```bash
+docker run --rm -it --network=host --name sb \
+    registry.cn-hangzhou.aliyuncs.com/ossrs/srs:sb \
+    ./objs/sb_rtmp_load -c 1 -r rtmp://127.0.0.1:1935/live/livestream
+```
+
+> Note: Please use `docker kill sb` to stop it.
 
 ## About
 
@@ -12,21 +57,13 @@ hls/http/rtmp-play/rtmp-publish load test tool base on st(state-threads), suppor
 1. 支持HTTP负载测试，所有并发重复下载一个http文件。可将80Gbps带宽测试的72Gbps。执行程序：`./objs/sb_http_load `
 1. 支持RTMP流播放测试，一个进程支持5k并发。执行程序：`./objs/sb_rtmp_load`
 1. 支持RTMP流推流测试，一个进程支持500个并发。执行程序：`./objs/sb_rtmp_publish`
-1. RTMP协议使用高性能服务器SRS([SimpleRtmpServer](https://github.com/winlinvip/simple-rtmp-server))的协议栈。
+1. RTMP协议使用高性能服务器SRS([SimpleRtmpServer](https://github.com/ossrs/srs))的协议栈。
 
 注意：
 
 1. HTTP/HLS：依赖服务器Content-Length，不支持chunked方式(chunked时会把所有内容当做body一直读)。
 2. 所有程序都在Linux下运行，模拟客户端运行。
-3. 其他工具参考[srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#srs-librtmp-examples)
-
-## Usage
-
-```
-git clone https://github.com/simple-rtmp-server/srs-bench.git &&
-cd srs-bench && ./configure && make &&
-./objs/sb_rtmp_load -c 1 -r rtmp://127.0.0.1:1935/live/livestream
-```
+3. 其他工具参考[srs-librtmp](https://github.com/ossrs/srs/wiki/v2_CN_SrsLibrtmp#srs-librtmp-examples)
 
 ## Benchmarks
 

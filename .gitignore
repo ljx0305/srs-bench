@@ -26,3 +26,8 @@
 *.exe
 *.out
 *.app
+
+Makefile
+objs
+.idea
+.DS_Store

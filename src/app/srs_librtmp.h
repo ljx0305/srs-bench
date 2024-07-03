@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013-2017 SRS(ossrs)
+Copyright (c) 2013-2015 SRS(ossrs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -43,18 +43,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *************************************************************/
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifdef _WIN32
+    // To disable some security warnings.
+    #define _CRT_SECURE_NO_WARNINGS
     // include windows first.
     #include <windows.h>
     // the type used by this header for windows.
+    #if defined(_MSC_VER)
+        #include <stdint.h>
+    #else
+        typedef char int8_t;
+        typedef short int16_t;
+        typedef int int32_t;
+        typedef long long int64_t;
+    #endif
     typedef unsigned long long u_int64_t;
-    typedef long long int64_t;
     typedef unsigned int u_int32_t;
     typedef u_int32_t uint32_t;
-    typedef int int32_t;
     typedef unsigned char u_int8_t;
-    typedef char int8_t;
     typedef unsigned short u_int16_t;
-    typedef short int16_t;
     typedef int64_t ssize_t;
     struct iovec {
         void  *iov_base;    /* Starting address */
@@ -67,20 +73,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef __cplusplus
 extern "C"{
 #endif
-
-/**
-* the schema of url, now bravo support 4 kinds of url:
-*     srs_url_schema_normal:    rtmp://vhost:port/app/stream
-*     srs_url_schema_via   :    rtmp://ip:port/vhost/app/stream
-*     srs_url_schema_vis   :    rtmp://ip:port/app/stream?vhost=xxx
-*     srs_url_schema_vis2  :    rtmp://ip:port/app/stream?domain=xxx
-*/
-enum srs_url_schema{
-    srs_url_schema_normal = 0,
-    srs_url_schema_via,
-    srs_url_schema_vis,
-    srs_url_schema_vis2
-};
 
 // typedefs
 typedef int srs_bool;
@@ -215,16 +207,6 @@ extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
 );
 
 /**
-* connect to rtmp vhost/app
-* category: publish/play
-* previous: handshake
-* next: publish or play
-*
-* @return 0, success; otherswise, failed.
-*/
-extern int srs_rtmp_connect_app3(srs_rtmp_t rtmp, enum srs_url_schema sus);
-
-/**
 * play a live/vod stream.
 * category: play
 * previous: connect-app
@@ -285,7 +267,6 @@ extern int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp,
 *             FlvTagAudio, @see "E.4.2.1 AUDIODATA"
 *            FlvTagVideo, @see "E.4.3.1 VIDEODATA"
 *            FlvTagScript, @see "E.4.4.1 SCRIPTDATA"
-*            User can free the packet by srs_rtmp_free_packet.
 * @param size, size of packet.
 * @return the error code. 0 for success; otherwise, error.
 *
@@ -302,11 +283,6 @@ extern int srs_rtmp_read_packet(srs_rtmp_t rtmp,
 extern int srs_rtmp_write_packet(srs_rtmp_t rtmp, 
     char type, u_int32_t timestamp, char* data, int size
 );
-    
-/**
- * Free the packet allocated by srs_rtmp_read_packet.
- */
-extern void srs_rtmp_free_packet(char* data);
 
 /**
 * whether type is script data and the data is onMetaData.
@@ -963,19 +939,15 @@ extern int srs_human_print_rtmp_packet4(char type, u_int32_t timestamp, char* da
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();
-    
-#ifndef _WIN32
-    // for getpid.
-    #include <unistd.h>
-#endif
+
 // when disabled log, donot compile it.
 #ifdef SRS_DISABLE_LOG
     #define srs_human_trace(msg, ...) (void)0
     #define srs_human_verbose(msg, ...) (void)0
     #define srs_human_raw(msg, ...) (void)0
 #else
-    #define srs_human_trace(msg, ...) printf("[%s][%d] ", srs_human_format_time(), getpid());printf(msg, ##__VA_ARGS__);printf("\n")
-    #define srs_human_verbose(msg, ...) (void)0
+    #define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
     #define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 #endif
 
@@ -983,7 +955,7 @@ extern const char* srs_human_format_time();
 **************************************************************
 * IO hijack, use your specified io functions.
 **************************************************************
- *************************************************************/
+*************************************************************/
 // the void* will convert to your handler for io hijack.
 typedef void* srs_hijack_io_t;
 #ifdef SRS_HIJACK_IO
@@ -998,7 +970,7 @@ typedef void* srs_hijack_io_t;
     extern srs_hijack_io_t srs_hijack_io_get(srs_rtmp_t rtmp);
 #endif
 // define the following macro and functions in your module to hijack the io.
-// the example @see https://github.com/ossrs/srs-bench
+// the example @see https://github.com/winlinvip/st-load
 // which use librtmp but use its own io(use st also).
 #ifdef SRS_HIJACK_IO
     /**
@@ -1012,10 +984,9 @@ typedef void* srs_hijack_io_t;
     extern void srs_hijack_io_destroy(srs_hijack_io_t ctx);
     /**
     * create socket, not connect yet.
-    * @param owner, the rtmp context which create this socket.
     * @return 0, success; otherswise, failed.
     */
-    extern int srs_hijack_io_create_socket(srs_hijack_io_t ctx, srs_rtmp_t owner);
+    extern int srs_hijack_io_create_socket(srs_hijack_io_t ctx);
     /**
     * connect socket at server_ip:port.
     * @return 0, success; otherswise, failed.
@@ -1027,10 +998,10 @@ typedef void* srs_hijack_io_t;
     */
     extern int srs_hijack_io_read(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread);
     /**
-    * set the socket recv timeout in ms.
+    * set the socket recv timeout.
     * @return 0, success; otherswise, failed.
     */
-    extern int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t tm);
+    extern int srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
     /**
     * get the socket recv timeout.
     * @return 0, success; otherswise, failed.
@@ -1042,10 +1013,10 @@ typedef void* srs_hijack_io_t;
     */
     extern int64_t srs_hijack_io_get_recv_bytes(srs_hijack_io_t ctx);
     /**
-    * set the socket send timeout in ms.
+    * set the socket send timeout.
     * @return 0, success; otherswise, failed.
     */
-    extern int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t tm);
+    extern int srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
     /**
     * get the socket send timeout.
     * @return 0, success; otherswise, failed.
@@ -1062,11 +1033,10 @@ typedef void* srs_hijack_io_t;
     */
     extern int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ssize_t* nwrite);
     /**
-    * whether the timeout is never timeout in ms.
+    * whether the timeout is never timeout.
     * @return 0, success; otherswise, failed.
     */
-    // TODO: FIXME: Upgrade srs-bench and change the us to ms for timeout.
-    extern bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t tm);
+    extern bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
     /**
     * read fully, fill the buf exactly size bytes.
     * @return 0, success; otherswise, failed.
@@ -1087,7 +1057,6 @@ typedef void* srs_hijack_io_t;
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifdef _WIN32
     // for time.
-    #define _CRT_SECURE_NO_WARNINGS
     #include <time.h>
     int gettimeofday(struct timeval* tv, struct timezone* tz);
     #define PRId64 "lld"
@@ -1116,9 +1085,7 @@ typedef void* srs_hijack_io_t;
     #define open _open
     #define close _close
     #define lseek _lseek
-    #define write _write
-    #define read _read
-    
+
     // for pid.
     typedef int pid_t;
     pid_t getpid(void);
@@ -1130,8 +1097,10 @@ typedef void* srs_hijack_io_t;
     int socket_setup();
     int socket_cleanup();
     
-    // others.
-    #define snprintf _snprintf
+    // snprintf is defined in VS2015, so we only define this macro before that.
+    #if defined(_MSC_VER) && _MSC_VER < 1900
+        #define snprintf _snprintf
+    #endif
 #endif
 
 #ifdef __cplusplus
